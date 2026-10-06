@@ -1,0 +1,36 @@
+name: Ubuntu VM com Tailscale + RDP
+
+on:
+  workflow_dispatch: {}   # executa manualmente pela aba Actions
+
+jobs:
+  vm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350   # limite máximo de um job no GitHub-hosted
+
+    steps:
+      - name: Instalar interface gráfica e RDP
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xfce4 xfce4-goodies xrdp dbus-x11
+          sudo systemctl enable xrdp
+          sudo systemctl start xrdp
+          sudo adduser $USER ssl-cert
+          echo "xfce4-session" > ~/.xsession
+          # senha para o usuário runner (troque "SenhaForte123!")
+          echo "runner:SenhaForte123!" | sudo chpasswd
+
+      - name: Conectar ao Tailscale
+        uses: tailscale/github-action@v3
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          # Sempre use secrets, nunca o auth key em texto puro!
+          # Alternativa (auth key em vez de OAuth):
+          # authkey: ${{ secrets.TS_AUTH_KEY }}
+
+      - name: Mostrar IP do runner na rede Tailscale
+        run: tailscale ip -4
+
+      - name: Manter a VM ligada
+        run: sleep 20000   # ~5h30; ajuste conforme necessário
